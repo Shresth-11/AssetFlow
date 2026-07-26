@@ -55,6 +55,11 @@ export const AuthProvider = ({ children }) => {
 
     const data = await response.json();
 
+    if (response.status === 401 || response.status === 403) {
+      logout();
+      throw new Error(data.error || "Session expired. Please log in again.");
+    }
+
     if (!response.ok) {
       throw new Error(data.error || "Something went wrong");
     }
