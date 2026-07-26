@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Logo } from "./Logo";
 import {
   LayoutDashboard,
   Box,
@@ -36,8 +37,8 @@ export const Sidebar = ({ onLogout }) => {
 
   return (
     <div className="sidebar animate-fade">
-      <div className="sidebar-logo">
-        <div className="logo-icon">AF</div>
+      <div className="sidebar-logo" style={{ gap: "10px" }}>
+        <Logo size={32} />
         <span className="logo-text">AssetFlow</span>
       </div>
 

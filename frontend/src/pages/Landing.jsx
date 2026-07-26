@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Logo } from "../components/Logo";
 import { Shield, Sparkles, Zap, Compass, ArrowRight } from "lucide-react";
 
 export const Landing = () => {
@@ -19,7 +20,7 @@ export const Landing = () => {
     <div style={{ backgroundColor: "var(--bg-primary)", minHeight: "100vh" }}>
       <nav className="landing-navbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div className="logo-icon">AF</div>
+          <Logo size={32} />
           <span className="logo-text" style={{ color: "var(--text-primary)" }}>AssetFlow</span>
         </div>
         <button onClick={handleLaunch} className="btn btn-primary btn-sm">

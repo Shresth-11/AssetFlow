@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { Logo } from "../components/Logo";
 import { Key, Mail, User as UserIcon, Building, ArrowLeft, Lock } from "lucide-react";
 
 export const Login = () => {
@@ -109,7 +110,7 @@ export const Login = () => {
     <div className="login-page" style={{ display: "flex", flexDirection: "column", minHeight: "100vh", alignItems: "center", justifyContent: "center", padding: "40px 20px", backgroundColor: "var(--bg-primary)" }}>
       <div className="animate-fade" style={{ textAlign: "center", marginBottom: "32px", animationDelay: "100ms" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "12px" }}>
-          <div className="logo-icon" style={{ width: "32px", height: "32px", borderRadius: "8px", backgroundColor: "var(--accent-primary)", color: "#FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "14px" }}>AF</div>
+          <Logo size={36} />
           <span style={{ fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>AssetFlow</span>
         </div>
         <h1 style={{ fontSize: "36px", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-1px", lineHeight: "1.2", margin: "0 0 8px 0" }}>
