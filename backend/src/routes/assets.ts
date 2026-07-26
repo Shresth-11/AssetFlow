@@ -9,9 +9,9 @@ const router = Router();
 const assetSchema = z.object({
   name: z.string().min(2, "Asset name must be at least 2 characters"),
   category_id: z.number().int("Category ID must be a valid integer"),
-  serial_number: z.string().min(1, "Serial number is required").nullable().optional(),
+  serial_number: z.string().nullable().optional(),
   acquisition_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Acquisition date must be YYYY-MM-DD"),
-  acquisition_cost: z.number().nonnegative("Acquisition cost cannot be negative"),
+  acquisition_cost: z.number().nonnegative("Acquisition cost cannot be negative").optional().default(0),
   condition: z.enum(["New", "Good", "Fair", "Poor", "Damaged"]),
   location: z.string().min(2, "Location must be at least 2 characters"),
   is_bookable: z.boolean().default(false),
@@ -52,20 +52,17 @@ router.get("/:id/history", authenticateJWT, async (req: AuthenticatedRequest, re
     const { id } = req.params;
     const history = await AssetService.getAssetHistory(id);
     return res.json(history);
-  } catch (error: any) {
-    if (error.message === "Asset not found") {
-      return res.status(404).json({ error: error.message });
-    }
+  } catch (error) {
     console.error("Fetch asset history route error:", error);
     return res.status(500).json({ error: "Internal server error fetching asset history" });
   }
 });
 
-// POST register new asset (Asset Manager only)
+// POST register new asset (Asset Manager or Admin only)
 router.post(
   "/",
   authenticateJWT,
-  requireRole(["AssetManager", "Admin", "DepartmentHead", "Employee"]),
+  requireRole(["AssetManager", "Admin"]),
   async (req: AuthenticatedRequest, res) => {
     try {
       const data = assetSchema.parse(req.body);
@@ -88,7 +85,6 @@ router.post(
       return res.status(500).json({
         error: "Internal server error registering asset",
         message: error.message,
-        stack: error.stack
       });
     }
   }

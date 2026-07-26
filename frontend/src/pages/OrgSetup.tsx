@@ -71,13 +71,13 @@ export const OrgSetup: React.FC = () => {
     setLoading(true);
     try {
       const deptsData = await apiFetch("/org/departments");
-      setDepartments(deptsData.departments);
+      setDepartments(deptsData.departments || []);
 
       const catsData = await apiFetch("/org/categories");
-      setCategories(catsData.categories);
+      setCategories(catsData.categories || []);
 
       const empsData = await apiFetch("/org/employees");
-      setEmployees(empsData.employees);
+      setEmployees(empsData.employees || []);
     } catch (err: any) {
       showToast("error", err.message || "Failed to load organization settings");
     } finally {
@@ -470,7 +470,14 @@ export const OrgSetup: React.FC = () => {
       {/* EMPLOYEES TAB VIEW */}
       {activeTab === "employees" && (
         <div className="card animate-fade" style={{ borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-sm)" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px", color: "var(--text-primary)" }}>Employee Administration Directory</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Employee Administration Directory</h3>
+            {user?.role === "Admin" && (
+              <button className="btn btn-primary btn-sm" onClick={() => setShowEmpModal(true)}>
+                <Plus size={14} /> Register Staff Member
+              </button>
+            )}
+          </div>
           {employees.length === 0 ? (
             <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: "13px" }}>
               No staff members registered in the database yet.
@@ -594,7 +601,7 @@ export const OrgSetup: React.FC = () => {
                   >
                     <option value="">No Parent (Top-level)</option>
                     {departments
-                      .filter((d) => d.id !== editingDeptId) // prevent self parent circular reference
+                      .filter((d) => d.id !== editingDeptId)
                       .map((d) => (
                         <option key={d.id} value={d.id}>
                           {d.name}
@@ -675,7 +682,6 @@ export const OrgSetup: React.FC = () => {
                   />
                 </div>
 
-                {/* Dynamic JSON Fields section */}
                 <div
                   style={{
                     border: "1px solid var(--border-color)",
@@ -708,7 +714,6 @@ export const OrgSetup: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Display added fields */}
                   {Object.keys(tempFields).length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                       {Object.entries(tempFields).map(([k, t]) => (

@@ -58,14 +58,14 @@ export const Audits: React.FC = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [selectedAuditors, setSelectedAuditors] = useState<number[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Active Selected Cycle for Auditing or Reports
   const [activeCycle, setActiveCycle] = useState<AuditCycle | null>(null);
   const [scopedAssets, setScopedAssets] = useState<Asset[]>([]);
   const [submittedResults, setSubmittedResults] = useState<Record<number, any>>({}); // asset_id -> result record
-  
-  // Discrepancy report preview state
   const [discrepancyReport, setDiscrepancyReport] = useState<any | null>(null);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
   // Form input for auditing an asset
   const [auditingAsset, setAuditingAsset] = useState<Asset | null>(null);
@@ -76,15 +76,15 @@ export const Audits: React.FC = () => {
     setLoading(true);
     try {
       const cyclesData = await apiFetch("/audits/cycles");
-      setCycles(cyclesData.cycles);
+      setCycles(cyclesData.cycles || []);
 
       const empsData = await apiFetch("/org/employees");
-      setEmployees(empsData.employees);
+      setEmployees(empsData.employees || []);
 
       const deptsData = await apiFetch("/org/departments");
-      setDepartments(deptsData.departments);
+      setDepartments(deptsData.departments || []);
     } catch (err: any) {
-      showToast("error", err.message || "Failed to load audit modules");
+      showToast("error", err.message || "Failed to load audit cycles");
     } finally {
       setLoading(false);
     }
@@ -94,26 +94,29 @@ export const Audits: React.FC = () => {
     fetchData();
   }, []);
 
-  const handleCreateCycle = async (e: React.FormEvent) => {
+  const handleCreateCycleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedAuditors.length === 0) {
-      showToast("error", "Must assign at least one auditor");
+    if (!startDate || !endDate || selectedAuditors.length === 0) {
+      showToast("error", "Start date, End date, and at least 1 Auditor are required.");
       return;
     }
 
     try {
+      const payload = {
+        scope_department_id: scopeDeptId === "" ? null : Number(scopeDeptId),
+        scope_location: scopeLocation || null,
+        start_date: startDate,
+        end_date: endDate,
+        auditor_employee_ids: selectedAuditors,
+      };
+
       await apiFetch("/audits/cycles", {
         method: "POST",
-        body: JSON.stringify({
-          scope_department_id: scopeDeptId === "" ? null : scopeDeptId,
-          scope_location: scopeLocation || null,
-          start_date: startDate,
-          end_date: endDate,
-          auditor_ids: selectedAuditors,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      showToast("success", "Audit Cycle created and auditors notified!");
+      showToast("success", "Audit Cycle scheduled successfully!");
+      setShowCreateModal(false);
       setScopeDeptId("");
       setScopeLocation("");
       setStartDate("");
@@ -125,45 +128,32 @@ export const Audits: React.FC = () => {
     }
   };
 
-  const handleAuditorSelectToggle = (id: number) => {
-    setSelectedAuditors((prev) =>
-      prev.includes(id) ? prev.filter((aId) => aId !== id) : [...prev, id]
-    );
-  };
-
-  // Open Cycle auditing view
-  const handleSelectCycle = async (cycle: AuditCycle) => {
-    setActiveCycle(cycle);
-    setAuditingAsset(null);
-    setDiscrepancyReport(null);
-
-    try {
-      // 1. Fetch discrepancy report (which evaluates scoped assets + submitted results)
-      const reportData = await apiFetch(`/audits/cycles/${cycle.id}/report`);
-      setDiscrepancyReport(reportData.summary);
-      
-      // Combine all assets in scope for list
-      const allAssets = [
-        ...reportData.report.verified,
-        ...reportData.report.missing,
-        ...reportData.report.damaged,
-        ...reportData.report.unaudited,
-      ].sort((a, b) => a.id - b.id);
-      
-      setScopedAssets(allAssets);
-
-      // Map submitted results by asset ID
-      const resultsMap: Record<number, any> = {};
-      reportData.report.verified.forEach((a: any) => (resultsMap[a.id] = { result: "Verified", notes: a.audit_notes }));
-      reportData.report.missing.forEach((a: any) => (resultsMap[a.id] = { result: "Missing", notes: a.audit_notes }));
-      reportData.report.damaged.forEach((a: any) => (resultsMap[a.id] = { result: "Damaged", notes: a.audit_notes }));
-      setSubmittedResults(resultsMap);
-    } catch (err: any) {
-      showToast("error", err.message || "Failed to load audit assets");
+  const toggleAuditorSelection = (empId: number) => {
+    if (selectedAuditors.includes(empId)) {
+      setSelectedAuditors(selectedAuditors.filter((id) => id !== empId));
+    } else {
+      setSelectedAuditors([...selectedAuditors, empId]);
     }
   };
 
-  // Submit single asset audit outcome
+  const handleSelectCycle = async (cycle: AuditCycle) => {
+    setActiveCycle(cycle);
+    setAuditingAsset(null);
+    try {
+      const report = await apiFetch(`/audits/cycles/${cycle.id}/report`);
+      setScopedAssets(report.scoped_assets || []);
+      setDiscrepancyReport(report.discrepancy_report || null);
+
+      const resMap: Record<number, any> = {};
+      (report.results || []).forEach((r: AuditResult) => {
+        resMap[r.asset_id] = r;
+      });
+      setSubmittedResults(resMap);
+    } catch (err: any) {
+      showToast("error", err.message || "Failed to fetch audit report details");
+    }
+  };
+
   const handleAuditOutcomeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeCycle || !auditingAsset) return;
@@ -174,7 +164,7 @@ export const Audits: React.FC = () => {
         body: JSON.stringify({
           asset_id: auditingAsset.id,
           result: auditOutcome,
-          notes: auditNotes,
+          notes: auditNotes || null,
         }),
       });
 
@@ -190,13 +180,12 @@ export const Audits: React.FC = () => {
     }
   };
 
-  const handleCloseCycle = async () => {
+  const handleConfirmCloseCycle = async () => {
     if (!activeCycle) return;
-    if (!confirm("Are you sure you want to CLOSE this cycle? This is FINAL, will lock all outcomes, and update physical asset statuses immediately (Missing -> Lost, Damaged -> UnderMaintenance).")) return;
-
     try {
       await apiFetch(`/audits/cycles/${activeCycle.id}/close`, { method: "POST" });
       showToast("success", "Audit Cycle closed successfully. Asset statuses updated.");
+      setShowCloseModal(false);
       setActiveCycle(null);
       fetchData();
     } catch (err: any) {
@@ -212,260 +201,184 @@ export const Audits: React.FC = () => {
 
   return (
     <div className="animate-fade">
-      {/* Dynamic View split: if no cycle selected, show Admin cycle creator + cycle listing */}
-      {!activeCycle ? (
-        <div className="grid-cols-2">
-          {/* Admin Create Cycle Form */}
-          {isAdmin ? (
-            <div className="card">
-              <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                <Plus size={18} color="var(--accent-primary)" />
-                Schedule Audit Cycle
+      {/* 1. Header Toolbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        <div>
+          <h2 style={{ fontSize: "18px", fontWeight: 700 }}>Physical Asset Audit Cycles</h2>
+          <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Reconcile physical inventory and verify asset location accuracy</span>
+        </div>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus size={16} /> Schedule Audit Cycle
+          </button>
+        )}
+      </div>
+
+      {/* 2. Audit Cycle Directory Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+        {cycles.length === 0 ? (
+          <div className="card" style={{ gridColumn: "span 3", padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
+            No audit cycles created yet. Click "+ Schedule Audit Cycle" to launch a physical audit sweep.
+          </div>
+        ) : (
+          cycles.map((cycle) => {
+            const isSelected = activeCycle?.id === cycle.id;
+            return (
+              <div
+                key={cycle.id}
+                className="card"
+                style={{
+                  cursor: "pointer",
+                  border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                  transition: "all 0.2s ease",
+                }}
+                onClick={() => handleSelectCycle(cycle)}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <span className={`badge ${cycle.status === "Open" ? "badge-success" : "badge-muted"}`}>
+                    {cycle.status} Cycle #{cycle.id}
+                  </span>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {cycle.start_date} to {cycle.end_date}
+                  </span>
+                </div>
+
+                <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "4px" }}>
+                  {cycle.department_name ? `Dept: ${cycle.department_name}` : "All Departments"}
+                  {cycle.scope_location ? ` — Location: ${cycle.scope_location}` : ""}
+                </div>
+
+                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "12px" }}>
+                  <strong>Assigned Auditors:</strong>{" "}
+                  {cycle.auditors && cycle.auditors.length > 0
+                    ? cycle.auditors.map((a) => a.name).join(", ")
+                    : "Unassigned"}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 3. Selected Audit Workspace */}
+      {activeCycle && (
+        <div className="card animate-fade" style={{ padding: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px" }}>
+            <div>
+              <h3 style={{ fontSize: "16px", fontWeight: 700 }}>
+                Audit Execution Workspace — Cycle #{activeCycle.id} ({activeCycle.status})
               </h3>
-              <form onSubmit={handleCreateCycle}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Scope Department</label>
-                    <select className="form-control" value={scopeDeptId} onChange={(e) => setScopeDeptId(e.target.value ? Number(e.target.value) : "")}>
-                      <option value="">Global (All Departments)</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Scope Location</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Warehouse A"
-                      value={scopeLocation}
-                      onChange={(e) => setScopeLocation(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Start Date</label>
-                    <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">End Date</label>
-                    <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
-                  </div>
-                </div>
-
-                {/* Auditor Multi-select checklist */}
-                <div className="form-group">
-                  <label className="form-label">Assign Auditors</label>
-                  <div
-                    style={{
-                      maxHeight: "130px",
-                      overflowY: "auto",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "var(--radius-sm)",
-                      padding: "10px 16px",
-                      backgroundColor: "var(--bg-primary)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {employees.map((emp) => (
-                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedAuditors.includes(emp.id)}
-                          onChange={() => handleAuditorSelectToggle(emp.id)}
-                          style={{ accentColor: "var(--accent-primary)" }}
-                        />
-                        {emp.name} ({emp.role})
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <button type="submit" className="btn btn-primary">Create Audit Cycle</button>
-              </form>
-            </div>
-          ) : (
-            <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-              <div>
-                <ShieldAlert size={32} color="var(--warning)" style={{ marginBottom: "12px" }} />
-                <h3 style={{ fontSize: "15px", fontWeight: 600 }}>Administrative Lock</h3>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", maxWidth: "280px", marginTop: "4px" }}>
-                  Only system **Administrators** can initialize, schedule, or close physical asset audits.
-                </p>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                Scope: {activeCycle.department_name || "Organization-wide"} | {activeCycle.scope_location || "All Locations"}
               </div>
             </div>
-          )}
-
-          {/* Audit Cycles listing */}
-          <div className="card">
-            <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px" }}>Scheduled Audit Cycles</h3>
-            <div className="table-container">
-              <table className="table-el">
-                <thead>
-                  <tr>
-                    <th>Cycle ID</th>
-                    <th>Scope</th>
-                    <th>Date Range</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cycles.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: "40px" }}>
-                        No audit cycles scheduled.
-                      </td>
-                    </tr>
-                  ) : (
-                    cycles.map((cyc) => (
-                      <tr key={cyc.id}>
-                        <td style={{ fontWeight: 600 }}>Cycle #{cyc.id}</td>
-                        <td>
-                          {cyc.department_name ? `Dept: ${cyc.department_name}` : "Global"}
-                          {cyc.scope_location && ` • Loc: ${cyc.scope_location}`}
-                        </td>
-                        <td style={{ fontSize: "12px" }}>
-                          {new Date(cyc.start_date).toLocaleDateString()} - {new Date(cyc.end_date).toLocaleDateString()}
-                        </td>
-                        <td>
-                          <span className={`badge ${cyc.status === "Open" ? "badge-info" : "badge-success"}`}>{cyc.status}</span>
-                        </td>
-                        <td>
-                          <button className="btn btn-secondary btn-sm" onClick={() => handleSelectCycle(cyc)}>
-                            Open <ChevronRight size={12} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Cycle Auditing / Summary Report View (Screen 8) */
-        <div className="animate-fade">
-          {/* Back button */}
-          <button className="btn btn-secondary btn-sm" onClick={() => setActiveCycle(null)} style={{ marginBottom: "16px" }}>
-            ← Back to List
-          </button>
-
-          {/* Header Panel (Brown Card) */}
-          <div
-            style={{
-              backgroundColor: "#3b2e2a",
-              border: "2px solid var(--border-color)",
-              borderRadius: "var(--radius-sm)",
-              padding: "20px",
-              color: "#ffffff",
-              marginBottom: "24px",
-              boxShadow: "var(--shadow-sm)"
-            }}
-          >
-            <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "#ffffff" }}>
-              Q3 audit: {activeCycle.department_name ? `${activeCycle.department_name} dept` : "Global Inventory"} -{" "}
-              {new Date(activeCycle.start_date).toLocaleDateString("en-US", { day: "numeric", month: "short" })} to{" "}
-              {new Date(activeCycle.end_date).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
-            </h3>
-            <p style={{ fontSize: "12.5px", color: "rgba(255, 255, 255, 0.8)", marginTop: "6px", fontFamily: "var(--font-mono)" }}>
-              Auditors: {activeCycle.auditors.map((a) => a.name).join(", ")}
-            </p>
+            {isAdmin && activeCycle.status === "Open" && (
+              <button className="btn btn-danger btn-sm" onClick={() => setShowCloseModal(true)}>
+                Close Audit Cycle
+              </button>
+            )}
           </div>
 
-          {/* Two Pane split: Left checklist table, Right verify tool */}
-          <div className="grid-cols-3">
-            <div className="card" style={{ gridColumn: "span 2" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px", color: "var(--text-primary)" }}>Audit Checklist</h3>
-              
-              <div className="table-container">
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}>
+            {/* Checklist & Results */}
+            <div>
+              <h4 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px" }}>
+                Scoped Asset Checklist ({scopedAssets.length} Assets)
+              </h4>
+              <div className="table-container" style={{ maxHeight: "400px", overflowY: "auto" }}>
                 <table className="table-el">
                   <thead>
                     <tr>
-                      <th>Asset</th>
-                      <th>Expected location</th>
-                      <th>Verification</th>
+                      <th>Tag</th>
+                      <th>Asset Name</th>
+                      <th>Location</th>
+                      <th>Audit Status</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {scopedAssets.map((asset) => {
-                      const resItem = submittedResults[asset.id];
-                      return (
-                        <tr
-                          key={asset.id}
-                          style={{ cursor: activeCycle.status === "Open" ? "pointer" : "default" }}
-                          onClick={() => activeCycle.status === "Open" && setAuditingAsset(asset)}
-                        >
-                          <td style={{ fontWeight: 600 }}>
-                            {asset.asset_tag} {asset.name}
-                          </td>
-                          <td style={{ fontFamily: "var(--font-mono)" }}>{asset.location}</td>
-                          <td>
-                            {resItem ? (
-                              <span
-                                className={`badge ${
-                                  resItem.result === "Verified"
-                                    ? "badge-success"
-                                    : resItem.result === "Damaged"
-                                    ? "badge-muted"
-                                    : "badge-danger"
-                                }`}
-                              >
-                                {resItem.result}
-                              </span>
-                            ) : (
-                              <span className="badge badge-muted" style={{ backgroundColor: "#ffffff" }}>Un-audited</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {scopedAssets.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: "24px" }}>
+                          No assets matched the current audit scope parameters.
+                        </td>
+                      </tr>
+                    ) : (
+                      scopedAssets.map((asset) => {
+                        const resultRecord = submittedResults[asset.id];
+                        return (
+                          <tr key={asset.id}>
+                            <td style={{ fontWeight: 600 }}>{asset.asset_tag}</td>
+                            <td>{asset.name}</td>
+                            <td>{asset.location}</td>
+                            <td>
+                              {resultRecord ? (
+                                <span
+                                  className={`badge ${
+                                    resultRecord.result === "Verified"
+                                      ? "badge-success"
+                                      : resultRecord.result === "Missing"
+                                      ? "badge-danger"
+                                      : "badge-warning"
+                                  }`}
+                                >
+                                  {resultRecord.result}
+                                </span>
+                              ) : (
+                                <span className="badge badge-muted">Pending Verification</span>
+                              )}
+                            </td>
+                            <td>
+                              {activeCycle.status === "Open" && (
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    setAuditingAsset(asset);
+                                    if (resultRecord) {
+                                      setAuditOutcome(resultRecord.result);
+                                      setAuditNotes(resultRecord.notes || "");
+                                    }
+                                  }}
+                                >
+                                  {resultRecord ? "Edit Log" : "Audit"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {/* Discrepancy Banner */}
-              {discrepancyReport && (discrepancyReport.missing_count + discrepancyReport.damaged_count > 0) && (
+              {/* Discrepancy Summary Badge */}
+              {discrepancyReport && (discrepancyReport.missing_count > 0 || discrepancyReport.damaged_count > 0) && (
                 <div
                   style={{
-                    backgroundColor: "#ca8a04",
-                    border: "2px solid var(--border-color)",
+                    backgroundColor: "rgba(239, 68, 68, 0.1)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
                     borderRadius: "var(--radius-sm)",
                     padding: "12px 16px",
-                    color: "#ffffff",
+                    color: "var(--danger)",
                     fontWeight: 700,
-                    fontSize: "12.5px",
-                    marginTop: "20px",
-                    boxShadow: "var(--shadow-sm)"
+                    fontSize: "13px",
+                    marginTop: "16px",
                   }}
                 >
-                  {discrepancyReport.missing_count + discrepancyReport.damaged_count} assets flagged - discrepancy report generated automatically
-                </div>
-              )}
-
-              {/* Close Audit Button */}
-              {isAdmin && activeCycle.status === "Open" && (
-                <div style={{ marginTop: "24px" }}>
-                  <button className="btn btn-secondary" onClick={handleCloseCycle} style={{ border: "2px solid var(--border-color)" }}>
-                    Close audit cycle
-                  </button>
+                  <ShieldAlert size={16} style={{ display: "inline-block", marginRight: "6px", verticalAlign: "middle" }} />
+                  Discrepancy Report: {discrepancyReport.missing_count} Missing, {discrepancyReport.damaged_count} Damaged
                 </div>
               )}
             </div>
 
-            {/* Audit Outcome Logger */}
-            <div className="card" style={{ gridColumn: "span 1" }}>
+            {/* Audit Form Logger */}
+            <div>
               {auditingAsset ? (
-                <div>
-                  <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "16px" }}>
-                    Verify Asset {auditingAsset.asset_tag}
-                  </h3>
+                <div style={{ backgroundColor: "var(--bg-secondary)", padding: "16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+                  <h4 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px" }}>
+                    Log Outcome: {auditingAsset.asset_tag}
+                  </h4>
                   <form onSubmit={handleAuditOutcomeSubmit}>
                     <div className="form-group">
                       <label className="form-label">Asset Name</label>
@@ -479,37 +392,150 @@ export const Audits: React.FC = () => {
                         value={auditOutcome}
                         onChange={(e) => setAuditOutcome(e.target.value as any)}
                       >
-                        <option value="Verified">Verified</option>
-                        <option value="Missing">Missing</option>
-                        <option value="Damaged">Damaged</option>
+                        <option value="Verified">Verified (Present & OK)</option>
+                        <option value="Missing">Missing (Not Found)</option>
+                        <option value="Damaged">Damaged (Faulty)</option>
                       </select>
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">Outcome Notes / Remarks</label>
+                      <label className="form-label">Remarks / Notes</label>
                       <textarea
                         className="form-control"
                         rows={3}
-                        placeholder="Remarks..."
+                        placeholder="Log observations..."
                         value={auditNotes}
                         onChange={(e) => setAuditNotes(e.target.value)}
                       ></textarea>
                     </div>
 
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button type="submit" className="btn btn-primary">Save Outcome</button>
-                      <button type="button" className="btn btn-secondary" onClick={() => setAuditingAsset(null)}>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1 }}>Save Log</button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAuditingAsset(null)}>
                         Cancel
                       </button>
                     </div>
                   </form>
                 </div>
               ) : (
-                <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
+                <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", backgroundColor: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px border var(--border-color)" }}>
                   <FileText size={32} style={{ marginBottom: "12px", opacity: 0.5 }} />
-                  <div>Select an asset from the checklist to log its current verification outcome.</div>
+                  <div style={{ fontSize: "13px" }}>Select an asset from the checklist to log its physical audit status.</div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE CYCLE MODAL */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: "16px", fontWeight: 700 }}>Schedule Physical Audit Cycle</h3>
+              <button
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px" }}
+                onClick={() => setShowCreateModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <form onSubmit={handleCreateCycleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Department Scope (Optional)</label>
+                  <select
+                    className="form-control"
+                    value={scopeDeptId}
+                    onChange={(e) => setScopeDeptId(e.target.value ? Number(e.target.value) : "")}
+                  >
+                    <option value="">All Departments (Organization-wide)</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Location Scope (Optional)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. Floor 2, Server Room, Headquarters"
+                    value={scopeLocation}
+                    onChange={(e) => setScopeLocation(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Start Date</label>
+                    <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">End Date</label>
+                    <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Assign Auditor Staff</label>
+                  <div style={{ maxHeight: "150px", overflowY: "auto", border: "1px solid var(--border-color)", padding: "8px", borderRadius: "var(--radius-sm)" }}>
+                    {employees.map((emp) => (
+                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", fontSize: "13px" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedAuditors.includes(emp.id)}
+                          onChange={() => toggleAuditorSelection(emp.id)}
+                        />
+                        {emp.name} ({emp.email})
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Launch Audit Cycle
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLOSE CYCLE CONFIRMATION MODAL */}
+      {showCloseModal && activeCycle && (
+        <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--danger)" }}>
+                Close Audit Cycle #{activeCycle.id}?
+              </h3>
+              <button
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px" }}
+                onClick={() => setShowCloseModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body" style={{ fontSize: "14px", lineHeight: "1.5" }}>
+              Closing this cycle is final. It will lock all outcome logs and automatically update asset statuses immediately (e.g. Missing → Lost, Damaged → Under Maintenance).
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowCloseModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleConfirmCloseCycle}>
+                Confirm Close Cycle
+              </button>
             </div>
           </div>
         </div>

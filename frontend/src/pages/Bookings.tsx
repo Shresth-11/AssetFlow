@@ -70,10 +70,10 @@ export const Bookings: React.FC = () => {
     setLoading(true);
     try {
       const bookingsData = await apiFetch("/bookings");
-      setBookings(bookingsData.bookings);
+      setBookings(bookingsData.bookings || []);
 
       const assetsData = await apiFetch("/assets");
-      const bookable = assetsData.assets.filter((a: any) => a.is_bookable);
+      const bookable = (assetsData.assets || []).filter((a: any) => a.is_bookable);
       setBookableAssets(bookable);
       
       // Auto-select first bookable asset for scheduler
@@ -101,7 +101,6 @@ export const Bookings: React.FC = () => {
     setStartDate(schedulerDate);
     setStartTime(initialStartTime || "");
     
-    // Set default end date same as start date
     setEndDate(schedulerDate);
     if (initialStartTime) {
       const [h, m] = initialStartTime.split(":");
@@ -125,16 +124,24 @@ export const Bookings: React.FC = () => {
       return;
     }
 
-    const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-    const endISO = new Date(`${endDate}T${endTime}`).toISOString();
-
     try {
+      const formattedStartTime = startTime.length === 5 ? `${startTime}:00` : startTime;
+      const formattedEndTime = endTime.length === 5 ? `${endTime}:00` : endTime;
+
+      const startD = new Date(`${startDate}T${formattedStartTime}`);
+      const endD = new Date(`${endDate}T${formattedEndTime}`);
+
+      if (isNaN(startD.getTime()) || isNaN(endD.getTime())) {
+        showToast("error", "Please provide valid start and end dates and times.");
+        return;
+      }
+
       await apiFetch("/bookings", {
         method: "POST",
         body: JSON.stringify({
           asset_id: Number(targetAssetId),
-          start_time: startISO,
-          end_time: endISO,
+          start_time: startD.toISOString(),
+          end_time: endD.toISOString(),
         }),
       });
 
@@ -164,12 +171,12 @@ export const Bookings: React.FC = () => {
       const payload = {
         name: resName,
         category_id: Number(resCatId),
-        serial_number: resSerial || null,
+        serial_number: resSerial.trim() ? resSerial.trim() : null,
         acquisition_date: resAcqDate,
         acquisition_cost: resAcqCost ? Number(resAcqCost) : 0,
         condition: resCondition,
         location: resLocation,
-        is_bookable: true, // Always true for resources
+        is_bookable: true,
       };
 
       await apiFetch("/assets", {
@@ -238,7 +245,6 @@ export const Bookings: React.FC = () => {
     return new Date(b.start_time).toDateString() === new Date(schedulerDate).toDateString();
   });
 
-  // Hours to show in Scheduler timeline: 9:00 to 18:00
   const schedulerHours = [
     { label: "9:00 AM", value: "09:00" },
     { label: "10:00 AM", value: "10:00" },
@@ -249,344 +255,296 @@ export const Bookings: React.FC = () => {
     { label: "3:00 PM", value: "15:00" },
     { label: "4:00 PM", value: "16:00" },
     { label: "5:00 PM", value: "17:00" },
-    { label: "6:00 PM", value: "18:00" }
+    { label: "6:00 PM", value: "18:00" },
   ];
+
+  const canAddResource = user?.role === "Admin" || user?.role === "AssetManager";
 
   return (
     <div className="animate-fade">
-      {/* Tab switch and Add button */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button className={`btn ${viewMode === "scheduler" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("scheduler")}>
-            <Clock size={16} /> Resource Scheduler
+      {/* 1. Header Toolbar with View Mode Toggles */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "8px", backgroundColor: "var(--bg-secondary)", padding: "4px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+          <button
+            className={`btn btn-sm ${viewMode === "scheduler" ? "btn-primary" : "btn-secondary"}`}
+            style={{ border: viewMode === "scheduler" ? undefined : "none" }}
+            onClick={() => setViewMode("scheduler")}
+          >
+            <Clock size={14} /> Interactive Time-Grid
           </button>
-          <button className={`btn ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("calendar")}>
-            <CalendarDays size={16} /> Weekly Agenda Grid
+          <button
+            className={`btn btn-sm ${viewMode === "catalog" ? "btn-primary" : "btn-secondary"}`}
+            style={{ border: viewMode === "catalog" ? undefined : "none" }}
+            onClick={() => setViewMode("catalog")}
+          >
+            <Grid size={14} /> Resource Catalog
           </button>
-          <button className={`btn ${viewMode === "catalog" ? "btn-primary" : "btn-secondary"}`} onClick={() => setViewMode("catalog")}>
-            <Grid size={16} /> Bookable Catalog
+          <button
+            className={`btn btn-sm ${viewMode === "calendar" ? "btn-primary" : "btn-secondary"}`}
+            style={{ border: viewMode === "calendar" ? undefined : "none" }}
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarDays size={14} /> All Reservations ({bookings.length})
           </button>
         </div>
-        
-        <div style={{ display: "flex", gap: "8px" }}>
-          {(user?.role === "Admin" || user?.role === "AssetManager") && (
-            <button className="btn btn-secondary" onClick={() => setShowAddResourceModal(true)} style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--border-color)", color: "var(--text-primary)" }}>
-              <Plus size={16} /> + Add Resource
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          {canAddResource && (
+            <button className="btn btn-secondary" onClick={() => setShowAddResourceModal(true)}>
+              <Plus size={16} /> Add Resource
             </button>
           )}
-          <button className="btn btn-primary" onClick={() => openBookingDrawer(selectedSchedulerAsset || null)}>
-            <Plus size={16} /> Book a slot
+          <button className="btn btn-primary" onClick={() => openBookingDrawer(null)}>
+            <Plus size={16} /> Reserve Resource
           </button>
         </div>
       </div>
 
-      {/* 1. DAILY TIMELINE SCHEDULER VIEW (Screen 6) */}
+      {/* VIEW MODE 1: INTERACTIVE TIME-GRID SCHEDULER */}
       {viewMode === "scheduler" && (
-        <div className="card animate-fade" style={{ backgroundColor: "#FFFFFF", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
-            <div>
-              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Resource booking</h3>
-              <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", marginTop: "2px" }}>Select a resource and date to schedule bookings and inspect potential conflicts.</p>
-            </div>
-            
-            {/* Filters */}
-            <div style={{ display: "flex", gap: "8px" }}>
-              <select
-                className="form-control"
-                style={{ width: "260px" }}
-                value={selectedSchedulerAssetId}
-                onChange={(e) => setSelectedSchedulerAssetId(e.target.value ? Number(e.target.value) : "")}
-              >
-                <option value="">Select Resource...</option>
-                {bookableAssets.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} ({a.asset_tag})
-                  </option>
-                ))}
-              </select>
-              <input
-                type="date"
-                className="form-control"
-                style={{ width: "160px" }}
-                value={schedulerDate}
-                onChange={(e) => setSchedulerDate(e.target.value)}
-              />
+        <div className="animate-fade">
+          {/* Resource & Date selector header card */}
+          <div className="card" style={{ marginBottom: "24px" }}>
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: "260px" }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Select Bookable Shared Resource</label>
+                <select
+                  className="form-control"
+                  style={{ fontSize: "14px", fontWeight: 600 }}
+                  value={selectedSchedulerAssetId}
+                  onChange={(e) => setSelectedSchedulerAssetId(e.target.value ? Number(e.target.value) : "")}
+                >
+                  {bookableAssets.length === 0 ? (
+                    <option value="">No bookable resources registered</option>
+                  ) : (
+                    bookableAssets.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.asset_tag}) — {a.location}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              <div style={{ width: "200px" }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Scheduler Date</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={schedulerDate}
+                  onChange={(e) => setSchedulerDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
+          {/* Timeline Grid */}
           {!selectedSchedulerAsset ? (
-            <div style={{ padding: "40px", textAlign: "center", color: "var(--text-secondary)" }}>
-              Please select a bookable resource from the list.
+            <div className="card" style={{ padding: "60px", textAlign: "center", color: "var(--text-muted)" }}>
+              Please select a bookable resource above to view its availability matrix.
             </div>
           ) : (
-            <div style={{ position: "relative" }}>
-              {/* Daily Schedule Slots */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", position: "relative" }}>
-                {schedulerHours.map((hour, index) => {
-                  // Find bookings that cover this hour slot
-                  const slotHourNum = Number(hour.value.split(":")[0]);
-                  
-                  // Filter bookings starting in this slot (or overlapping)
-                  const slotBookings = activeSchedulerBookings.filter((b) => {
-                    const bStart = new Date(b.start_time);
-                    const bStartHour = bStart.getHours();
-                    return bStartHour === slotHourNum;
+            <div className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700 }}>
+                    {selectedSchedulerAsset.name} <span style={{ fontSize: "13px", color: "var(--accent-primary)" }}>({selectedSchedulerAsset.asset_tag})</span>
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Location: {selectedSchedulerAsset.location}</span>
+                </div>
+                <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "12px", height: "12px", borderRadius: "3px", backgroundColor: "var(--bg-primary)", border: "1px solid var(--border-color)" }}></span> Available Slot
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ width: "12px", height: "12px", borderRadius: "3px", backgroundColor: "#FEF2F2", border: "1px solid #EF4444" }}></span> Booked Slot
+                  </span>
+                </div>
+              </div>
+
+              {/* Time Slots Matrix */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "12px" }}>
+                {schedulerHours.map((slot) => {
+                  const slotStart = new Date(`${schedulerDate}T${slot.value}:00`).getTime();
+                  const slotEnd = slotStart + 3600000;
+
+                  const overlappingBooking = activeSchedulerBookings.find((b) => {
+                    const bStart = new Date(b.start_time).getTime();
+                    const bEnd = new Date(b.end_time).getTime();
+                    return slotStart < bEnd && slotEnd > bStart;
                   });
+
+                  if (overlappingBooking) {
+                    return (
+                      <div
+                        key={slot.value}
+                        style={{
+                          backgroundColor: "#FEF2F2",
+                          border: "2px solid #EF4444",
+                          borderRadius: "var(--radius-sm)",
+                          padding: "14px",
+                          color: "#991B1B",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <Clock size={12} /> {slot.label}
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: 600, marginTop: "6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          Reserved by {overlappingBooking.booked_by_name}
+                        </div>
+                        {user?.role === "Admin" || user?.id === overlappingBooking.booked_by_employee_id ? (
+                          <button
+                            style={{
+                              marginTop: "8px",
+                              background: "none",
+                              border: "none",
+                              color: "#DC2626",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              padding: 0,
+                              textDecoration: "underline"
+                            }}
+                            onClick={() => handleCancelBooking(overlappingBooking.id)}
+                          >
+                            Cancel Reservation
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  }
 
                   return (
                     <div
-                      key={index}
+                      key={slot.value}
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "100px 1fr",
-                        alignItems: "center",
-                        minHeight: "64px",
-                        borderBottom: "1px dashed var(--border-color)",
-                        paddingBottom: "8px"
+                        backgroundColor: "var(--bg-primary)",
+                        border: "1px dashed var(--border-color)",
+                        borderRadius: "var(--radius-sm)",
+                        padding: "14px",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
                       }}
+                      onClick={() => openBookingDrawer(selectedSchedulerAsset, slot.value)}
                     >
-                      {/* Hour Indicator */}
-                      <div style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: "14px" }}>
-                        {hour.label}
+                      <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Clock size={12} color="var(--accent-primary)" /> {slot.label}
                       </div>
-
-                      {/* Content block next to it */}
-                      <div style={{ position: "relative", display: "flex", gap: "10px", flexWrap: "wrap", width: "100%" }}>
-                        {slotBookings.length === 0 ? (
-                          <div
-                            onClick={() => openBookingDrawer(selectedSchedulerAsset || null, hour.value)}
-                            style={{
-                              flex: 1,
-                              height: "42px",
-                              border: "1px dashed rgba(0, 0, 0, 0.08)",
-                              borderRadius: "var(--radius-sm)",
-                              display: "flex",
-                              alignItems: "center",
-                              paddingLeft: "16px",
-                              fontSize: "12.5px",
-                              color: "var(--text-muted)",
-                              cursor: "pointer",
-                              transition: "all 0.2s"
-                            }}
-                            className="hover-bg-secondary"
-                            title="Click to reserve this slot"
-                          >
-                            + Click to reserve slot
-                          </div>
-                        ) : (
-                          slotBookings.map((b) => (
-                            <div
-                              key={b.id}
-                              style={{
-                                flex: 1,
-                                minWidth: "260px",
-                                backgroundColor: "rgba(99, 102, 241, 0.05)",
-                                borderLeft: "4px solid var(--accent-primary)",
-                                border: "1px solid rgba(99, 102, 241, 0.15)",
-                                borderRadius: "var(--radius-sm)",
-                                padding: "10px 14px",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center"
-                              }}
-                            >
-                              <div>
-                                <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--text-primary)" }}>
-                                  Booked - {b.booked_by_name}
-                                </div>
-                                <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginTop: "2px" }}>
-                                  {new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} to {new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                </div>
-                              </div>
-                              {b.booked_by_employee_id === user?.id && (
-                                <button className="btn btn-danger btn-sm" onClick={() => handleCancelBooking(b.id)} style={{ padding: "4px 8px", fontSize: "11px" }}>
-                                  Cancel
-                                </button>
-                              )}
-                            </div>
-                          ))
-                        )}
-
-                        {/* MOCK CONFLICT GRAPHIC Zone matching Screen 6 (Only on B2-like selection and Tuesdays for perfect visual representation) */}
-                        {index === 1 && (
-                          <div
-                            style={{
-                              flex: "0 1 320px",
-                              border: "2px dashed #EF4444",
-                              backgroundColor: "#FEF2F2",
-                              borderRadius: "var(--radius-sm)",
-                              padding: "10px 14px",
-                              color: "#B91C1C",
-                              fontSize: "12.5px"
-                            }}
-                          >
-                            <div style={{ display: "flex", gap: "6px", alignItems: "center", fontWeight: 700 }}>
-                              <AlertTriangle size={14} />
-                              <span>Conflict Zone detected</span>
-                            </div>
-                            <div style={{ fontSize: "11.5px", marginTop: "2px" }}>
-                              Requested 9:30 to 10:30 - conflict - slot is unavailable
-                            </div>
-                          </div>
-                        )}
+                      <div style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 600, marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Plus size={10} /> Click to Book
                       </div>
                     </div>
                   );
                 })}
               </div>
-
-              {/* Bottom scheduler action button */}
-              <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-start" }}>
-                <button className="btn btn-primary" onClick={() => openBookingDrawer(selectedSchedulerAsset)} style={{ backgroundColor: "#15803d", borderColor: "#15803d", fontWeight: 600 }}>
-                  Book a slot
-                </button>
-              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* 2. WEEKLY CALENDAR AGENDA VIEW */}
-      {viewMode === "calendar" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "32px" }}>
-          {weekDays.map((day, idx) => {
-            const dayBookings = getBookingsForDay(day);
-            return (
-              <div
-                key={idx}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "140px 1fr",
-                  gap: "20px",
-                  backgroundColor: "var(--bg-secondary)",
-                  border: "1px solid var(--border-color)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "16px 20px",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--text-primary)" }}>
-                    {day.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                  </div>
-                  <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    {dayBookings.length === 0 ? "No bookings" : `${dayBookings.length} scheduled`}
-                  </span>
-                </div>
-
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {dayBookings.length === 0 ? (
-                    <span style={{ fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic" }}>
-                      Open schedule block
-                    </span>
-                  ) : (
-                    dayBookings.map((b) => (
-                      <div
-                        key={b.id}
-                        style={{
-                          backgroundColor: "var(--bg-primary)",
-                          border: "1px solid var(--border-color)",
-                          borderRadius: "var(--radius-sm)",
-                          padding: "10px 14px",
-                          minWidth: "220px",
-                          fontSize: "12.5px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          position: "relative",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{b.asset_name}</div>
-                          <div style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", marginTop: "2px" }}>
-                            <Clock size={12} />
-                            <span>
-                              {new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
-                              {new Date(b.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                            By: {b.booked_by_name}
-                          </div>
-                        </div>
-
-                        {(b.booked_by_employee_id === user?.id || user?.role === "Admin" || user?.role === "AssetManager") && b.status === "Upcoming" && (
-                          <button
-                            onClick={() => handleCancelBooking(b.id)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              color: "var(--danger)",
-                              cursor: "pointer",
-                              padding: "4px",
-                              borderRadius: "4px",
-                            }}
-                            title="Cancel Booking"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* 3. CATALOG VIEW */}
+      {/* VIEW MODE 2: RESOURCE CATALOG */}
       {viewMode === "catalog" && (
-        <div className="grid-cols-3">
-          {bookableAssets.map((asset) => (
-            <div key={asset.id} className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent-primary)", letterSpacing: "0.5px" }}>
-                    {asset.asset_tag}
-                  </span>
-                  <span className={`badge ${asset.status === "Available" ? "badge-success" : "badge-warning"}`}>
-                    {asset.status}
-                  </span>
-                </div>
-                <h4 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "8px", color: "var(--text-primary)" }}>{asset.name}</h4>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px" }}>
-                  <MapPin size={14} color="var(--text-muted)" />
-                  <span>{asset.location}</span>
-                </div>
-              </div>
-              <button
-                className="btn btn-secondary btn-sm btn-full"
-                onClick={() => openBookingDrawer(asset)}
-                disabled={["Retired", "Disposed", "Lost", "UnderMaintenance"].includes(asset.status)}
-              >
-                Book Resource
-              </button>
+        <div className="grid-cols-3 animate-fade">
+          {bookableAssets.length === 0 ? (
+            <div className="card" style={{ gridColumn: "span 3", padding: "60px", textAlign: "center", color: "var(--text-muted)" }}>
+              No bookable shared resources found in inventory catalog.
             </div>
-          ))}
+          ) : (
+            bookableAssets.map((asset) => (
+              <div key={asset.id} className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                    <span className="badge badge-info">{asset.asset_tag}</span>
+                    <span className="badge badge-success">{asset.status}</span>
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "4px" }}>{asset.name}</h3>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginBottom: "16px" }}>
+                    <MapPin size={12} /> {asset.location}
+                  </div>
+                </div>
+
+                <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => openBookingDrawer(asset)}>
+                  <Plus size={14} /> Reserve Slot
+                </button>
+              </div>
+            ))
+          )}
         </div>
       )}
 
-      {/* 4. SLIDING BOOKING DRAWER FORM */}
+      {/* VIEW MODE 3: ALL RESERVATIONS DIRECTORY */}
+      {viewMode === "calendar" && (
+        <div className="card animate-fade">
+          <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "16px" }}>Organization Resource Reservations</h3>
+          <div className="table-container">
+            <table className="table-el">
+              <thead>
+                <tr>
+                  <th>Resource</th>
+                  <th>Reserved By</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: "40px" }}>
+                      No resource bookings recorded.
+                    </td>
+                  </tr>
+                ) : (
+                  bookings.map((booking) => (
+                    <tr key={booking.id}>
+                      <td style={{ fontWeight: 600 }}>
+                        {booking.asset_name} ({booking.asset_tag})
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{booking.booked_by_name}</div>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{booking.booked_by_email}</span>
+                      </td>
+                      <td>{new Date(booking.start_time).toLocaleString()}</td>
+                      <td>{new Date(booking.end_time).toLocaleString()}</td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            booking.status === "Upcoming"
+                              ? "badge-info"
+                              : booking.status === "Ongoing"
+                              ? "badge-success"
+                              : booking.status === "Completed"
+                              ? "badge-muted"
+                              : "badge-danger"
+                          }`}
+                        >
+                          {booking.status}
+                        </span>
+                      </td>
+                      <td>
+                        {booking.status !== "Cancelled" && (user?.role === "Admin" || user?.id === booking.booked_by_employee_id) ? (
+                          <button className="btn btn-danger btn-sm" onClick={() => handleCancelBooking(booking.id)}>
+                            Cancel
+                          </button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 4. BOOKING DRAWER / MODAL */}
       {showDrawer && (
         <div className="modal-overlay" onClick={() => setShowDrawer(false)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: "fixed",
-              right: 0,
-              top: 0,
-              height: "100vh",
-              width: "420px",
-              borderRadius: 0,
-              animation: "slideUp 0.3s ease-out",
-            }}
-          >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 style={{ fontSize: "16px", fontWeight: 700 }}>
-                {selectedAsset ? `Book: ${selectedAsset.name}` : "Create Resource Booking"}
+                {selectedAsset ? `Reserve ${selectedAsset.name}` : "Reserve Shared Resource"}
               </h3>
               <button
                 style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px" }}
@@ -595,20 +553,29 @@ export const Bookings: React.FC = () => {
                 ×
               </button>
             </div>
-            <form onSubmit={handleBookingSubmit} style={{ height: "calc(100% - 70px)", display: "flex", flexDirection: "column" }}>
-              <div className="modal-body" style={{ flex: 1 }}>
+            <form onSubmit={handleBookingSubmit}>
+              <div className="modal-body">
+                {submitError && (
+                  <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #EF4444", color: "#991B1B", padding: "12px", borderRadius: "var(--radius-sm)", marginBottom: "16px", fontSize: "13px" }}>
+                    {submitError}
+                  </div>
+                )}
+
                 {!selectedAsset && (
                   <div className="form-group">
-                    <label className="form-label">Select Resource</label>
-                    <select className="form-control" value={assetId} onChange={(e) => setAssetId(e.target.value ? Number(e.target.value) : "")} required>
-                      <option value="">Select Resource</option>
-                      {bookableAssets
-                        .filter((a) => !["Retired", "Disposed", "Lost", "UnderMaintenance"].includes(a.status))
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} ({a.asset_tag})
-                          </option>
-                        ))}
+                    <label className="form-label">Resource</label>
+                    <select
+                      className="form-control"
+                      value={assetId}
+                      onChange={(e) => setAssetId(e.target.value ? Number(e.target.value) : "")}
+                      required
+                    >
+                      <option value="">Select Resource...</option>
+                      {bookableAssets.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} ({a.asset_tag}) — {a.location}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}
@@ -634,27 +601,8 @@ export const Bookings: React.FC = () => {
                     <input type="time" className="form-control" value={endTime} onChange={(e) => setEndTime(e.target.value)} required />
                   </div>
                 </div>
-
-                {submitError && (
-                  <div className="conflict-alert animate-fade" style={{ marginTop: "20px", border: "1px solid rgba(244, 63, 94, 0.15)", backgroundColor: "rgba(244, 63, 94, 0.02)", padding: "14px", borderRadius: "var(--radius-md)" }}>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "6px" }}>
-                      <AlertTriangle size={15} color="var(--danger)" />
-                      <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--danger)" }}>Reservation Failed</span>
-                    </div>
-                    <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
-                      {submitError}
-                    </p>
-                  </div>
-                )}
-
-                {!submitError && (
-                  <div style={{ marginTop: "20px", padding: "14px", backgroundColor: "rgba(49, 46, 129, 0.02)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", fontSize: "12.5px" }}>
-                    <strong style={{ color: "var(--accent-primary)", display: "block", marginBottom: "4px" }}>Collision Avoidance Shield:</strong>
-                    System runs real-time row-locks on this resource to prevent concurrency overlaps.
-                  </div>
-                )}
               </div>
-              <div className="modal-footer" style={{ borderTop: "1px solid var(--border-color)", padding: "16px 24px" }}>
+              <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowDrawer(false)}>
                   Cancel
                 </button>

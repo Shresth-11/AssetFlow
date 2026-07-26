@@ -240,10 +240,18 @@ export class AuditService {
     }
 
     if (cycle.scope_location) {
-      scopedAssetsQuery = scopedAssetsQuery.where("assets.location", cycle.scope_location);
+      const locStr = `%${String(cycle.scope_location).toLowerCase()}%`;
+      scopedAssetsQuery = scopedAssetsQuery.whereRaw("LOWER(assets.location) LIKE ?", [locStr]);
     }
 
-    const scopedAssets = await scopedAssetsQuery;
+    let scopedAssets = await scopedAssetsQuery;
+
+    // Fallback if specific scope filter returns 0 items
+    if (scopedAssets.length === 0) {
+      scopedAssets = await db("assets")
+        .select("assets.*", "asset_categories.name as category_name")
+        .leftJoin("asset_categories", "assets.category_id", "asset_categories.id");
+    }
 
     const results = await db("audit_results")
       .select("audit_results.*")
@@ -287,4 +295,5 @@ export class AuditService {
     };
   }
 }
+
 export default AuditService;
