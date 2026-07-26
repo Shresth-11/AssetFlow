@@ -19,11 +19,11 @@ module.exports = {
     connection,
     acquireConnectionTimeout: 60000,
     migrations: {
-      directory: path.join(__dirname, "dist/db/migrations"),
+      directory: path.join(__dirname, "src/db/migrations"),
       extension: "js",
     },
     seeds: {
-      directory: path.join(__dirname, "dist/db/seeds"),
+      directory: path.join(__dirname, "src/db/seeds"),
       extension: "js",
     },
   },
@@ -32,11 +32,11 @@ module.exports = {
     connection,
     acquireConnectionTimeout: 60000,
     migrations: {
-      directory: path.join(__dirname, "dist/db/migrations"),
+      directory: path.join(__dirname, "src/db/migrations"),
       extension: "js",
     },
     seeds: {
-      directory: path.join(__dirname, "dist/db/seeds"),
+      directory: path.join(__dirname, "src/db/seeds"),
       extension: "js",
     },
   },
