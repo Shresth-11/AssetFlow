@@ -85,45 +85,29 @@ export const Notifications: React.FC = () => {
     });
   };
 
-  if (loading) {
-    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh", fontSize: "16px", color: "var(--text-secondary)" }}>Loading notifications...</div>;
-  }
-
   const filteredNotifs = getFilteredNotifications();
 
   return (
-    <div className="card animate-fade" style={{ backgroundColor: "#FFFFFF", border: "2px solid var(--border-color)", padding: "24px", minHeight: "60vh" }}>
-      {/* Page Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--border-color)", paddingBottom: "16px", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
-            <Bell size={18} style={{ display: "inline-block", marginRight: "8px", verticalAlign: "middle" }} />
-            System Notifications
-          </h3>
-        </div>
-
-        {notifications.some((n) => !n.is_read) && (
-          <button className="btn btn-secondary btn-sm" onClick={handleMarkAllRead} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <MailOpen size={14} /> Mark all as read
-          </button>
-        )}
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold">Notifications</h2>
+        <button onClick={handleMarkAllRead} className="text-sm text-blue-600 hover:underline">
+          Mark all as read
+        </button>
       </div>
 
-      {/* Filter Tabs (Screen 10: All | Alerts | Approvals | Bookings) */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
+      <div className="flex gap-2 mb-4">
         {(["All", "Alerts", "Approvals", "Bookings"] as const).map((filter) => (
           <button
             key={filter}
-            className={`btn ${activeFilter === filter ? "btn-primary" : "btn-secondary"}`}
-            style={{ padding: "6px 14px", fontSize: "12.5px" }}
             onClick={() => setActiveFilter(filter)}
+            className={`px-3 py-1 rounded text-xs font-semibold ${activeFilter === filter ? "bg-black text-white" : "bg-gray-200"}`}
           >
             {filter}
           </button>
         ))}
       </div>
 
-      {/* Notifications Directory List */}
       {filteredNotifs.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
           <div style={{ display: "inline-flex", padding: "12px", borderRadius: "50%", border: "2px solid var(--border-color)", backgroundColor: "var(--bg-tertiary)", marginBottom: "12px" }}>

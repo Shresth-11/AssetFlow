@@ -38,13 +38,26 @@ export const Reports: React.FC = () => {
     }
   };
 
+  const handleExport = () => {
+    const csvContent = [
+      ["Category", "Total Count", "Allocated", "Utilization %"],
+      ...catSummary.map(c => [c.category_name, c.total_count, c.allocated_count, c.utilization_rate])
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "report_export.csv";
+    a.click();
+  };
+
   useEffect(() => {
     fetchReports();
   }, []);
 
-  const handleExport = () => {
-    showToast("success", "Generating spreadsheet export packet... Shipped!");
-  };
+  const totalAssets = deptSummary.reduce((acc, curr) => acc + curr.asset_count, 0);
+  const totalValuation = deptSummary.reduce((acc, curr) => acc + curr.total_valuation, 0);
 
   if (loading) {
     return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "50vh", fontSize: "16px", color: "var(--text-secondary)" }}>Loading reports...</div>;
@@ -58,6 +71,33 @@ export const Reports: React.FC = () => {
         <p style={{ fontSize: "12.5px", color: "var(--text-secondary)", marginTop: "2px" }}>
           Inspect utilization ratios, maintenance frequencies, and device aging records.
         </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div className="card" style={{ padding: "20px", backgroundColor: "#fff", border: "2px solid var(--border-color)", display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#f0fdf4" }}><BarChart3 size={24} color="#16a34a" /></div>
+          <div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Total Assets</div>
+            <div style={{ fontSize: "20px", fontWeight: 700 }}>{totalAssets}</div>
+          </div>
+        </div>
+        <div className="card" style={{ padding: "20px", backgroundColor: "#fff", border: "2px solid var(--border-color)", display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#eff6ff" }}><DollarSign size={24} color="#2563eb" /></div>
+          <div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Total Valuation</div>
+            <div style={{ fontSize: "20px", fontWeight: 700 }}>${totalValuation.toLocaleString()}</div>
+          </div>
+        </div>
+        <div className="card" style={{ padding: "20px", backgroundColor: "#fff", border: "2px solid var(--border-color)", display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "#fff7ed" }}><Percent size={24} color="#ea580c" /></div>
+          <div>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Avg Utilization</div>
+            <div style={{ fontSize: "20px", fontWeight: 700 }}>
+              {(catSummary.reduce((acc, curr) => acc + curr.utilization_rate, 0) / (catSummary.length || 1)).toFixed(1)}%
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 1. Charts Grid (Screen 9: Utilization & Maintenance charts) */}
