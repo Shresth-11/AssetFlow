@@ -10,17 +10,6 @@ const { logActivity, createNotification } = require("../utils/activity");
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "supersecretjwtkeyforassetflowerp2026";
 
-// Diagnostic Endpoint to seed/migrate database on demand
-router.get("/debug-seed-file", async (req, res) => {
-  try {
-    const fs = require("fs");
-    const content = fs.readFileSync(path.join(__dirname, "../db/seeds/initial_seeds.js"), "utf8");
-    return res.type("text/plain").send(content);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
 router.get("/init-db", async (req, res) => {
   try {
     const hasTable = await db.schema.hasTable("knex_migrations");
