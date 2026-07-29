@@ -427,18 +427,18 @@ export const Audits = () => {
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ border: "2px solid var(--border-color)", boxShadow: "var(--shadow-lg)", padding: "24px", maxWidth: "550px" }}>
-            <div className="modal-header" style={{ borderBottom: "2px solid var(--border-color)", paddingBottom: "12px", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>Schedule Physical Audit Cycle</h3>
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>Schedule Physical Audit Cycle</h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "24px" }}
+                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "20px" }}
                 onClick={() => setShowCreateModal(false)}
               >
                 ×
               </button>
             </div>
             <form onSubmit={handleCreateCycleSubmit}>
-              <div className="modal-body" style={{ padding: 0 }}>
+              <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Department Scope (Optional)</label>
                   <select
@@ -496,7 +496,7 @@ export const Audits = () => {
                 </div>
               </div>
 
-              <div className="modal-footer" style={{ borderTop: "2px solid var(--border-color)", paddingTop: "16px", marginTop: "24px" }}>
+              <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </button>
@@ -511,22 +511,22 @@ export const Audits = () => {
 
       {showCloseModal && activeCycle && (
         <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
-          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ border: "2px solid var(--border-color)", boxShadow: "var(--shadow-lg)", padding: "24px", maxWidth: "450px" }}>
-            <div className="modal-header" style={{ borderBottom: "2px solid var(--border-color)", paddingBottom: "12px", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--danger)", margin: 0 }}>
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--danger)", margin: 0 }}>
                 ⚠️ Close Audit Cycle #{activeCycle.id}?
               </h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "24px" }}
+                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "20px" }}
                 onClick={() => setShowCloseModal(false)}
               >
                 ×
               </button>
             </div>
-            <div className="modal-body" style={{ fontSize: "13.5px", lineHeight: "1.5", color: "var(--text-secondary)", padding: 0 }}>
+            <div className="modal-body" style={{ fontSize: "13.5px", lineHeight: "1.5", color: "var(--text-secondary)" }}>
               Closing this cycle is final. It will lock all outcome logs and automatically update asset statuses immediately (e.g. Missing → Lost, Damaged → Under Maintenance).
             </div>
-            <div className="modal-footer" style={{ borderTop: "2px solid var(--border-color)", paddingTop: "16px", marginTop: "24px" }}>
+            <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowCloseModal(false)}>
                 Cancel
               </button>
