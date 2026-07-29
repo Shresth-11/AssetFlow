@@ -138,6 +138,21 @@ export const Audits = () => {
     }
   };
 
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const handleConfirmCloseCycle = async () => {
     if (!activeCycle) return;
     try {
@@ -159,10 +174,15 @@ export const Audits = () => {
 
   return (
     <div className="animate-fade">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+      {/* Header Panel */}
+      <div className="card animate-fade" style={{ backgroundColor: "#FFFFFF", padding: "24px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h2 style={{ fontSize: "18px", fontWeight: 700 }}>Physical Asset Audit Cycles</h2>
-          <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Reconcile physical inventory and verify asset location accuracy</span>
+          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+            🔍 Physical Inventory Audit Cycles
+          </h2>
+          <span style={{ fontSize: "12.5px", color: "var(--text-secondary)", marginTop: "4px", display: "block" }}>
+            Create audit schedules, assign verification staff, and reconcile physical inventory with real-time location checks.
+          </span>
         </div>
         {isAdmin && (
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
@@ -171,7 +191,7 @@ export const Audits = () => {
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", marginBottom: "32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px", marginBottom: "32px" }}>
         {cycles.length === 0 ? (
           <div className="card" style={{ gridColumn: "span 3", padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
             No audit cycles created yet. Click "+ Schedule Audit Cycle" to launch a physical audit sweep.
@@ -190,28 +210,46 @@ export const Audits = () => {
                   transform: isSelected ? "translate(-2px, -2px)" : "none",
                   boxShadow: isSelected ? "var(--shadow-lg)" : "var(--shadow-md)",
                   transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  gap: "16px"
                 }}
                 onClick={() => handleSelectCycle(cycle)}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <span className={`badge ${cycle.status === "Open" ? "badge-success" : "badge-muted"}`}>
-                    {cycle.status} Cycle #{cycle.id}
-                  </span>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    {cycle.start_date} to {cycle.end_date}
-                  </span>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                    <span className={`badge ${cycle.status === "Open" ? "badge-success" : "badge-muted"}`}>
+                      {cycle.status === "Open" ? "🟢 Open" : "🔒 Closed"} Cycle #{cycle.id}
+                    </span>
+                    <span style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                      {formatDisplayDate(cycle.start_date)} - {formatDisplayDate(cycle.end_date)}
+                    </span>
+                  </div>
+
+                  <h4 style={{ fontWeight: 700, fontSize: "16px", color: "var(--text-primary)", marginBottom: "4px" }}>
+                    🏢 {cycle.department_name ? cycle.department_name : "All Departments"}
+                  </h4>
+                  {cycle.scope_location && (
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "4px" }}>
+                      📍 {cycle.scope_location}
+                    </div>
+                  )}
                 </div>
 
-                <div style={{ fontWeight: 700, fontSize: "15px", marginBottom: "4px" }}>
-                  {cycle.department_name ? `Dept: ${cycle.department_name}` : "All Departments"}
-                  {cycle.scope_location ? ` — Location: ${cycle.scope_location}` : ""}
-                </div>
-
-                <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "12px" }}>
-                  <strong>Assigned Auditors:</strong>{" "}
-                  {cycle.auditors && cycle.auditors.length > 0
-                    ? cycle.auditors.map((a) => a.name).join(", ")
-                    : "Unassigned"}
+                <div style={{ borderTop: "2px dashed var(--border-color)", paddingTop: "12px", fontSize: "12px", color: "var(--text-secondary)" }}>
+                  <strong style={{ color: "var(--text-primary)" }}>📋 Auditors:</strong>{" "}
+                  {cycle.auditors && cycle.auditors.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "6px" }}>
+                      {cycle.auditors.map((a) => (
+                        <span key={a.id} className="badge badge-muted" style={{ padding: "2px 6px", fontSize: "10.5px" }}>
+                          👤 {a.name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    "Unassigned"
+                  )}
                 </div>
               </div>
             );
@@ -220,13 +258,13 @@ export const Audits = () => {
       </div>
 
       {activeCycle && (
-        <div className="card animate-fade" style={{ padding: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px" }}>
+        <div className="card animate-fade" style={{ padding: "24px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "2px solid var(--border-color)", paddingBottom: "16px", flexWrap: "wrap", gap: "16px" }}>
             <div>
-              <h3 style={{ fontSize: "16px", fontWeight: 700 }}>
-                Audit Execution Workspace — Cycle #{activeCycle.id} ({activeCycle.status})
+              <h3 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>
+                🛠️ Audit Execution Workspace — Cycle #{activeCycle.id} ({activeCycle.status})
               </h3>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
                 Scope: {activeCycle.department_name || "Organization-wide"} | {activeCycle.scope_location || "All Locations"}
               </div>
             </div>
@@ -313,17 +351,21 @@ export const Audits = () => {
                 <div
                   style={{
                     backgroundColor: "rgba(239, 68, 68, 0.1)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    border: "2px solid var(--border-color)",
                     borderRadius: "var(--radius-sm)",
                     padding: "12px 16px",
-                    color: "var(--danger)",
+                    color: "var(--text-primary)",
                     fontWeight: 700,
                     fontSize: "13px",
                     marginTop: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "var(--shadow-sm)"
                   }}
                 >
-                  <ShieldAlert size={16} style={{ display: "inline-block", marginRight: "6px", verticalAlign: "middle" }} />
-                  Discrepancy Report: {discrepancyReport.missing_count} Missing, {discrepancyReport.damaged_count} Damaged
+                  <ShieldAlert size={18} style={{ color: "#EF4444" }} />
+                  <span>Discrepancy Report: {discrepancyReport.missing_count} Missing, {discrepancyReport.damaged_count} Damaged</span>
                 </div>
               )}
             </div>
@@ -385,18 +427,18 @@ export const Audits = () => {
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 style={{ fontSize: "16px", fontWeight: 700 }}>Schedule Physical Audit Cycle</h3>
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ border: "2px solid var(--border-color)", boxShadow: "var(--shadow-lg)", padding: "24px", maxWidth: "550px" }}>
+            <div className="modal-header" style={{ borderBottom: "2px solid var(--border-color)", paddingBottom: "12px", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>Schedule Physical Audit Cycle</h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px" }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "24px" }}
                 onClick={() => setShowCreateModal(false)}
               >
                 ×
               </button>
             </div>
             <form onSubmit={handleCreateCycleSubmit}>
-              <div className="modal-body">
+              <div className="modal-body" style={{ padding: 0 }}>
                 <div className="form-group">
                   <label className="form-label">Department Scope (Optional)</label>
                   <select
@@ -437,22 +479,24 @@ export const Audits = () => {
 
                 <div className="form-group">
                   <label className="form-label">Assign Auditor Staff</label>
-                  <div style={{ maxHeight: "150px", overflowY: "auto", border: "1px solid var(--border-color)", padding: "8px", borderRadius: "var(--radius-sm)" }}>
+                  <div style={{ maxHeight: "150px", overflowY: "auto", border: "2px solid var(--border-color)", padding: "8px", borderRadius: "var(--radius-sm)", backgroundColor: "#FFFFFF" }}>
                     {employees.map((emp) => (
-                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 0", cursor: "pointer", fontSize: "13px" }}>
+                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", cursor: "pointer", fontSize: "13px", borderBottom: "1px solid var(--bg-primary)" }}>
                         <input
                           type="checkbox"
+                          style={{ accentColor: "var(--accent-primary)", width: "16px", height: "16px", cursor: "pointer" }}
                           checked={selectedAuditors.includes(emp.id)}
                           onChange={() => toggleAuditorSelection(emp.id)}
                         />
-                        {emp.name} ({emp.email})
+                        <span style={{ fontWeight: 500 }}>{emp.name}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>{emp.role}</span>
                       </label>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="modal-footer">
+              <div className="modal-footer" style={{ borderTop: "2px solid var(--border-color)", paddingTop: "16px", marginTop: "24px" }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </button>
@@ -467,22 +511,22 @@ export const Audits = () => {
 
       {showCloseModal && activeCycle && (
         <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
-            <div className="modal-header">
-              <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--danger)" }}>
-                Close Audit Cycle #{activeCycle.id}?
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ border: "2px solid var(--border-color)", boxShadow: "var(--shadow-lg)", padding: "24px", maxWidth: "450px" }}>
+            <div className="modal-header" style={{ borderBottom: "2px solid var(--border-color)", paddingBottom: "12px", marginBottom: "20px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--danger)", margin: 0 }}>
+                ⚠️ Close Audit Cycle #{activeCycle.id}?
               </h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px" }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "24px" }}
                 onClick={() => setShowCloseModal(false)}
               >
                 ×
               </button>
             </div>
-            <div className="modal-body" style={{ fontSize: "14px", lineHeight: "1.5" }}>
+            <div className="modal-body" style={{ fontSize: "13.5px", lineHeight: "1.5", color: "var(--text-secondary)", padding: 0 }}>
               Closing this cycle is final. It will lock all outcome logs and automatically update asset statuses immediately (e.g. Missing → Lost, Damaged → Under Maintenance).
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ borderTop: "2px solid var(--border-color)", paddingTop: "16px", marginTop: "24px" }}>
               <button type="button" className="btn btn-secondary" onClick={() => setShowCloseModal(false)}>
                 Cancel
               </button>
