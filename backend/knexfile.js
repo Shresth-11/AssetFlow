@@ -18,6 +18,13 @@ module.exports = {
     client: "pg",
     connection,
     acquireConnectionTimeout: 60000,
+    pool: {
+      min: 2,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      createTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
+    },
     migrations: {
       directory: path.join(__dirname, "src/db/migrations"),
       extension: "js",
@@ -31,6 +38,13 @@ module.exports = {
     client: "pg",
     connection,
     acquireConnectionTimeout: 60000,
+    pool: {
+      min: 2,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      createTimeoutMillis: 30000,
+      acquireTimeoutMillis: 30000,
+    },
     migrations: {
       directory: path.join(__dirname, "src/db/migrations"),
       extension: "js",

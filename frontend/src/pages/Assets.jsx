@@ -38,7 +38,7 @@ export const Assets = () => {
   const [auditHistory, setAuditHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const fetchAssets = async () => {
+  const fetchAssets = async (silent = false) => {
     try {
       let url = "/assets?";
       if (search) url += `search=${search}&`;
@@ -49,26 +49,50 @@ export const Assets = () => {
 
       const data = await apiFetch(url);
       setAssets(data.assets || []);
+
+      // Cache general assets for SWR
+      if (!search && !selectedCat && !selectedStatus && !selectedLocation && !selectedBookable) {
+        localStorage.setItem("af_assets_cache", JSON.stringify(data.assets || []));
+      }
     } catch (err) {
-      showToast("error", err.message || "Failed to load assets");
+      if (!silent) showToast("error", err.message || "Failed to load assets");
     }
   };
 
-  const fetchInitialData = async () => {
-    setLoading(true);
+  const fetchInitialData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      await fetchAssets();
-      const catsData = await apiFetch("/org/categories");
+      const [catsData] = await Promise.all([
+        apiFetch("/org/categories"),
+        fetchAssets(silent)
+      ]);
       setCategories(catsData.categories || []);
+      localStorage.setItem("af_categories_cache", JSON.stringify(catsData.categories || []));
     } catch (err) {
-      showToast("error", err.message || "Initialization failed");
+      if (!silent) showToast("error", err.message || "Initialization failed");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInitialData();
+    const cachedAssets = localStorage.getItem("af_assets_cache");
+    const cachedCats = localStorage.getItem("af_categories_cache");
+    if (cachedAssets && cachedCats) {
+      try {
+        setAssets(JSON.parse(cachedAssets));
+        setCategories(JSON.parse(cachedCats));
+        setLoading(false);
+      } catch (e) {
+        // Cache stale or invalid, ignore
+      }
+    }
+    fetchInitialData(!!(cachedAssets && cachedCats));
+  }, []);
+
+  useEffect(() => {
+    // Re-fetch assets list on search/filter change without fetching categories again
+    fetchAssets(true);
   }, [search, selectedCat, selectedStatus, selectedLocation, selectedBookable]);
 
   const handleRegisterSubmit = async (e) => {

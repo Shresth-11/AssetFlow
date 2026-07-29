@@ -96,26 +96,51 @@ export const Dashboard = () => {
     requestAnimationFrame(step);
   }, [kpis]);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const data = await apiFetch("/analytics/dashboard");
+      const [data, catsData, assetsData] = await Promise.all([
+        apiFetch("/analytics/dashboard"),
+        apiFetch("/org/categories"),
+        apiFetch("/assets")
+      ]);
+
       setKpis(data.kpis);
       setOverdueItems(data.overdueItems || []);
       setActivityLogs(data.recentActivity || []);
-
-      const catsData = await apiFetch("/org/categories");
       setCategories(catsData.categories || []);
-      const assetsData = await apiFetch("/assets");
       setAssets(assetsData.assets || []);
+
+      // Cache fresh data for SWR
+      localStorage.setItem("af_dashboard_cache", JSON.stringify({
+        kpis: data.kpis,
+        overdueItems: data.overdueItems || [],
+        recentActivity: data.recentActivity || []
+      }));
     } catch (err) {
-      showToast("error", err.message || "Failed to load dashboard metrics");
+      if (!silent) showToast("error", err.message || "Failed to load dashboard metrics");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    // Load from cache first for instant initial render
+    const cachedData = localStorage.getItem("af_dashboard_cache");
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        setKpis(parsed.kpis);
+        setOverdueItems(parsed.overdueItems || []);
+        setActivityLogs(parsed.recentActivity || []);
+        setLoading(false);
+      } catch (e) {
+        // Cache stale or invalid, ignore
+      }
+    }
+    
+    // Always fetch fresh data in background
+    fetchDashboardData(!!cachedData);
   }, []);
 
   const handleRegisterSubmit = async (e) => {

@@ -28,6 +28,13 @@ const db = knex({
   client: "pg",
   connection,
   acquireConnectionTimeout: 60000,
+  pool: {
+    min: 2,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    createTimeoutMillis: 30000,
+    acquireTimeoutMillis: 30000,
+  }
 });
 
 module.exports = db;
