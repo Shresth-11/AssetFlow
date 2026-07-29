@@ -185,7 +185,10 @@ export const Audits = () => {
                 className="card"
                 style={{
                   cursor: "pointer",
-                  border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-color)",
+                  borderColor: isSelected ? "var(--accent-primary)" : "var(--border-color)",
+                  backgroundColor: isSelected ? "rgba(189, 178, 255, 0.05)" : "var(--bg-secondary)",
+                  transform: isSelected ? "translate(-2px, -2px)" : "none",
+                  boxShadow: isSelected ? "var(--shadow-lg)" : "var(--shadow-md)",
                   transition: "all 0.2s ease",
                 }}
                 onClick={() => handleSelectCycle(cycle)}
@@ -327,9 +330,9 @@ export const Audits = () => {
 
             <div>
               {auditingAsset ? (
-                <div style={{ backgroundColor: "var(--bg-secondary)", padding: "16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
-                  <h4 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px" }}>
-                    Log Outcome: {auditingAsset.asset_tag}
+                <div className="card" style={{ padding: "20px", border: "2px solid var(--border-color)", borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-sm)" }}>
+                  <h4 style={{ fontSize: "14px", fontWeight: 700, marginBottom: "12px", borderBottom: "2px solid var(--border-color)", paddingBottom: "8px" }}>
+                    ✍️ Log Outcome: {auditingAsset.asset_tag}
                   </h4>
                   <form onSubmit={handleAuditOutcomeSubmit}>
                     <div className="form-group">
@@ -370,9 +373,9 @@ export const Audits = () => {
                   </form>
                 </div>
               ) : (
-                <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", backgroundColor: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", border: "1px border var(--border-color)" }}>
-                  <FileText size={32} style={{ marginBottom: "12px", opacity: 0.5 }} />
-                  <div style={{ fontSize: "13px" }}>Select an asset from the checklist to log its physical audit status.</div>
+                <div className="card" style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", backgroundColor: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "2px solid var(--border-color)", boxShadow: "var(--shadow-sm)" }}>
+                  <FileText size={32} style={{ marginBottom: "12px", color: "var(--text-secondary)", opacity: 0.7 }} />
+                  <div style={{ fontSize: "13px", fontWeight: 500 }}>Select an asset from the checklist to log its physical audit status.</div>
                 </div>
               )}
             </div>

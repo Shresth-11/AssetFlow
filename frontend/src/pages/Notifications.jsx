@@ -79,88 +79,112 @@ export const Notifications = () => {
   const filteredNotifs = getFilteredNotifications();
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Notifications</h2>
-        <button onClick={handleMarkAllRead} className="text-sm text-blue-600 hover:underline">
-          Mark all as read
-        </button>
+    <div className="card animate-fade" style={{ backgroundColor: "#FFFFFF", padding: "28px", minHeight: "65vh" }}>
+      {/* Top Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid var(--border-color)", paddingBottom: "18px", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <h2 style={{ fontSize: "20px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+            🔔 Notifications Board
+          </h2>
+          <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginTop: "4px" }}>
+            Track logs, request alerts, custody checkouts, and system audit logs.
+          </p>
+        </div>
+        {notifications.some((n) => !n.is_read) && (
+          <button onClick={handleMarkAllRead} className="btn btn-secondary btn-sm">
+            Mark all read
+          </button>
+        )}
       </div>
 
-      <div className="flex gap-2 mb-4">
+      {/* Filter Category Tabs */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
         {["All", "Alerts", "Approvals", "Bookings"].map((filter) => (
           <button
             key={filter}
             onClick={() => setActiveFilter(filter)}
-            className={`px-3 py-1 rounded text-xs font-semibold ${activeFilter === filter ? "bg-black text-white" : "bg-gray-200"}`}
+            className={`btn btn-sm ${activeFilter === filter ? "btn-primary" : "btn-secondary"}`}
+            style={{ minWidth: "80px" }}
           >
             {filter}
           </button>
         ))}
       </div>
 
+      {/* Main List */}
       {filteredNotifs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
+        <div style={{ textAlign: "center", padding: "60px 20px", border: "2px dashed var(--border-color)", borderRadius: "var(--radius-md)", backgroundColor: "var(--bg-primary)" }}>
           <div style={{ display: "inline-flex", padding: "12px", borderRadius: "50%", border: "2px solid var(--border-color)", backgroundColor: "var(--bg-tertiary)", marginBottom: "12px" }}>
             <Check size={24} />
           </div>
-          <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>No notifications</h4>
-          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>There are no alerts matching this filter category.</p>
+          <h4 style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>Inbox cleared!</h4>
+          <p style={{ fontSize: "12px", color: "var(--text-muted)" }}>No notifications matching the "{activeFilter}" filter found.</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", border: "2px solid var(--border-color)", padding: "12px" }}>
-          {filteredNotifs.map((notif) => (
-            <div
-              key={notif.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                borderBottom: "1.5px dashed var(--border-color)",
-                padding: "12px 6px",
-                gap: "16px"
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-                <div
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    backgroundColor: notif.is_read ? "var(--text-muted)" : "#EF4444",
-                    border: "1.5px solid var(--border-color)",
-                    flexShrink: 0
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: notif.is_read ? 500 : 700,
-                    color: "var(--text-primary)",
-                    fontFamily: "var(--font-mono)",
-                    wordBreak: "break-word"
-                  }}
-                >
-                  {notif.message}
-                </span>
-              </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {filteredNotifs.map((notif) => {
+            const isAlert = notif.type === "alert" || notif.type === "warning" || notif.message.toLowerCase().includes("overdue") || notif.message.toLowerCase().includes("discrepancy");
+            const borderAccent = isAlert ? "var(--danger)" : "var(--accent-primary)";
+            const bgAccent = isAlert ? "rgba(255, 173, 173, 0.12)" : "rgba(189, 178, 255, 0.08)";
+            
+            return (
+              <div
+                key={notif.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "16px 20px",
+                  backgroundColor: notif.is_read ? "var(--bg-secondary)" : bgAccent,
+                  border: "2px solid var(--border-color)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: notif.is_read ? "2px 2px 0px var(--border-color)" : "var(--shadow-sm)",
+                  gap: "20px",
+                  transition: "all 0.15s ease",
+                  borderLeft: `6px solid ${borderAccent}`
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1 }}>
+                  <div
+                    style={{
+                      width: "10px",
+                      height: "10px",
+                      borderRadius: "50%",
+                      backgroundColor: notif.is_read ? "var(--text-muted)" : borderAccent,
+                      flexShrink: 0
+                    }}
+                  />
+                  <div>
+                    <span
+                      style={{
+                        fontSize: "13.5px",
+                        fontWeight: notif.is_read ? 500 : 700,
+                        color: "var(--text-primary)",
+                        fontFamily: "var(--font-sans)",
+                        wordBreak: "break-word",
+                        lineHeight: "1.4"
+                      }}
+                    >
+                      {notif.message}
+                    </span>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px", fontFamily: "var(--font-mono)" }}>
+                      ⏳ {getRelativeTime(notif.created_at)}
+                    </div>
+                  </div>
+                </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-                <span style={{ fontSize: "11.5px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                  {getRelativeTime(notif.created_at)}
-                </span>
                 {!notif.is_read && (
                   <button
                     className="btn btn-secondary btn-sm"
-                    style={{ padding: "2px 6px", fontSize: "10.5px" }}
+                    style={{ padding: "4px 10px", fontSize: "11px" }}
                     onClick={() => handleMarkAsRead(notif.id)}
                   >
                     Mark read
                   </button>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
