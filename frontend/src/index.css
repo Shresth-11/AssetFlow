@@ -830,18 +830,15 @@ body {
 /* Modals & Overlay blurs */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(26, 26, 26, 0.4);
+  inset: 0;
+  background-color: rgba(26, 26, 26, 0.55);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 9999;
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -850,7 +847,7 @@ body {
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   width: 100%;
-  max-width: 600px;
+  max-width: 680px;
   max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;

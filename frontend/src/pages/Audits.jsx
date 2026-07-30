@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Plus, ShieldAlert, FileText } from "lucide-react";
@@ -425,21 +426,24 @@ export const Audits = () => {
         </div>
       )}
 
-      {showCreateModal && (
+      {showCreateModal && createPortal(
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "720px", width: "90%" }}>
             <div className="modal-header">
-              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>Schedule Physical Audit Cycle</h3>
+              <h3 style={{ fontSize: "17px", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>
+                📋 Schedule Physical Asset Audit Cycle
+              </h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "20px" }}
+                type="button"
+                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "22px", fontWeight: 700 }}
                 onClick={() => setShowCreateModal(false)}
               >
                 ×
               </button>
             </div>
             <form onSubmit={handleCreateCycleSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
+              <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Department Scope (Optional)</label>
                   <select
                     className="form-control"
@@ -455,7 +459,7 @@ export const Audits = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Location Scope (Optional)</label>
                   <input
                     type="text"
@@ -466,30 +470,31 @@ export const Audits = () => {
                   />
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Start Date</label>
+                <div className="form-row" style={{ margin: 0 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Start Date *</label>
                     <input type="date" className="form-control" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">End Date</label>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">End Date *</label>
                     <input type="date" className="form-control" value={endDate} onChange={(e) => setEndDate(e.target.value)} required />
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Assign Auditor Staff</label>
-                  <div style={{ maxHeight: "150px", overflowY: "auto", border: "2px solid var(--border-color)", padding: "8px", borderRadius: "var(--radius-sm)", backgroundColor: "#FFFFFF" }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Assign Auditor Staff * ({selectedAuditors.length} Selected)</label>
+                  <div style={{ maxHeight: "200px", overflowY: "auto", border: "2px solid var(--border-color)", padding: "6px", borderRadius: "var(--radius-sm)", backgroundColor: "#FFFFFF" }}>
                     {employees.map((emp) => (
-                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", cursor: "pointer", fontSize: "13px", borderBottom: "1px solid var(--bg-primary)" }}>
+                      <label key={emp.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", cursor: "pointer", fontSize: "13.5px", borderBottom: "1px solid var(--bg-primary)" }}>
                         <input
                           type="checkbox"
-                          style={{ accentColor: "var(--accent-primary)", width: "16px", height: "16px", cursor: "pointer" }}
+                          style={{ accentColor: "var(--accent-primary)", width: "17px", height: "17px", cursor: "pointer" }}
                           checked={selectedAuditors.includes(emp.id)}
                           onChange={() => toggleAuditorSelection(emp.id)}
                         />
-                        <span style={{ fontWeight: 500 }}>{emp.name}</span>
-                        <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>{emp.role}</span>
+                        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{emp.name}</span>
+                        <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>({emp.email})</span>
+                        <span className="badge badge-muted" style={{ marginLeft: "auto", fontSize: "10px" }}>{emp.role}</span>
                       </label>
                     ))}
                   </div>
@@ -500,30 +505,32 @@ export const Audits = () => {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" style={{ minWidth: "160px" }}>
                   Launch Audit Cycle
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {showCloseModal && activeCycle && (
+      {showCloseModal && activeCycle && createPortal(
         <div className="modal-overlay" onClick={() => setShowCloseModal(false)}>
-          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+          <div className="modal-content animate-fade" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px", width: "90%" }}>
             <div className="modal-header">
               <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--danger)", margin: 0 }}>
                 ⚠️ Close Audit Cycle #{activeCycle.id}?
               </h3>
               <button
-                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "20px" }}
+                type="button"
+                style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", fontSize: "20px", fontWeight: 700 }}
                 onClick={() => setShowCloseModal(false)}
               >
                 ×
               </button>
             </div>
-            <div className="modal-body" style={{ fontSize: "13.5px", lineHeight: "1.5", color: "var(--text-secondary)" }}>
+            <div className="modal-body" style={{ fontSize: "14px", lineHeight: "1.5", color: "var(--text-secondary)" }}>
               Closing this cycle is final. It will lock all outcome logs and automatically update asset statuses immediately (e.g. Missing → Lost, Damaged → Under Maintenance).
             </div>
             <div className="modal-footer">
@@ -535,7 +542,8 @@ export const Audits = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
