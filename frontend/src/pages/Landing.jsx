@@ -20,7 +20,7 @@ export const Landing = () => {
     <div style={{ backgroundColor: "var(--bg-primary)", minHeight: "100vh" }}>
       <nav className="landing-navbar">
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <Logo size={32} />
+          <Logo size={44} />
           <span className="logo-text" style={{ color: "var(--text-primary)" }}>AssetFlow</span>
         </div>
         <button onClick={handleLaunch} className="btn btn-primary btn-sm">

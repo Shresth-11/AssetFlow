@@ -38,7 +38,7 @@ export const Sidebar = ({ onLogout }) => {
   return (
     <div className="sidebar animate-fade">
       <div className="sidebar-logo" style={{ gap: "10px" }}>
-        <Logo size={32} />
+        <Logo size={42} />
         <span className="logo-text">AssetFlow</span>
       </div>
 
