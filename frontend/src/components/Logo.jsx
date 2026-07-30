@@ -9,6 +9,7 @@ export const Logo = ({ size = 32, animated = true }) => {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
+        flexShrink: 0,
       }}
     >
       <svg
@@ -18,142 +19,101 @@ export const Logo = ({ size = 32, animated = true }) => {
         style={{ overflow: "visible" }}
       >
         <defs>
+          <linearGradient id="assetFlowGradMain" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#BDB2FF" />
+            <stop offset="50%" stopColor="#00C2A8" />
+            <stop offset="100%" stopColor="#A0C4FF" />
+          </linearGradient>
+
           <style>{`
-            .logo-gear-group {
-              transform-origin: 50px 42px;
-              ${animated ? "animation: spinGear 12s linear infinite;" : ""}
+            .logo-box-group {
+              transform-origin: 50px 50px;
+              ${animated ? "animation: floatBox 3.5s ease-in-out infinite alternate;" : ""}
             }
-            .logo-hand-left {
-              transform-origin: 25px 76px;
-              ${animated ? "animation: floatHandLeft 3s ease-in-out infinite alternate;" : ""}
+            .logo-flow-arrow {
+              transform-origin: 50px 48px;
+              ${animated ? "animation: flowPulse 2.5s ease-in-out infinite alternate;" : ""}
             }
-            .logo-hand-right {
-              transform-origin: 75px 76px;
-              ${animated ? "animation: floatHandRight 3s ease-in-out infinite alternate;" : ""}
+            .logo-sparkle {
+              transform-origin: 50px 44px;
+              ${animated ? "animation: sparkleScale 2s ease-in-out infinite alternate;" : ""}
             }
-            .logo-dollar {
-              transform-origin: 50px 42px;
-              ${animated ? "animation: pulseDollar 3s ease-in-out infinite alternate;" : ""}
+
+            @keyframes floatBox {
+              from { transform: translateY(0px); }
+              to { transform: translateY(-3px); }
             }
-            @keyframes spinGear {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
+            @keyframes flowPulse {
+              from { opacity: 0.88; transform: scale(0.98); }
+              to { opacity: 1; transform: scale(1.02); }
             }
-            @keyframes floatHandLeft {
-              from { transform: translateY(0px) rotate(0deg); }
-              to { transform: translateY(-1.5px) rotate(-1deg); }
-            }
-            @keyframes floatHandRight {
-              from { transform: translateY(0px) rotate(0deg); }
-              to { transform: translateY(-1.5px) rotate(1deg); }
-            }
-            @keyframes pulseDollar {
-              from { transform: scale(0.95); }
-              to { transform: scale(1.05); }
+            @keyframes sparkleScale {
+              from { transform: scale(0.85) rotate(0deg); }
+              to { transform: scale(1.15) rotate(12deg); }
             }
           `}</style>
         </defs>
 
-        {/* Left Hand Group */}
-        <g className="logo-hand-left" style={{ color: "var(--text-primary)" }}>
+        {/* Isometric Asset Box & Custody Shield */}
+        <g className="logo-box-group">
+          {/* Main Gradient Box Outer Boundary */}
           <path
-            d="M 25,80 L 21,80 C 19,80 17,78 17,76 L 17,46 C 17,43 21,43 21,46 L 21,56 C 21,58 23,59 25,59 C 27,59 28,58 29,56 L 29,53 C 29,50 33,50 33,53 L 33,76 C 33,78 31,80 29,80 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
+            d="M 50,14 L 84,32 L 84,68 L 50,86 L 16,68 L 16,32 Z"
+            fill="url(#assetFlowGradMain)"
+            stroke="#1A1A1A"
+            strokeWidth="5"
             strokeLinejoin="round"
           />
-          <line
-            x1="21"
-            y1="84"
-            x2="33"
-            y2="84"
-            stroke="currentColor"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-          />
-        </g>
 
-        {/* Right Hand Group */}
-        <g className="logo-hand-right" style={{ color: "var(--text-primary)" }}>
+          {/* Top Face (Highlight Layer) */}
           <path
-            d="M 75,80 L 79,80 C 81,80 83,78 83,76 L 83,46 C 83,43 79,43 79,46 L 79,56 C 79,58 77,59 75,59 C 73,59 72,58 71,56 L 71,53 C 71,50 67,50 67,53 L 67,76 C 67,78 69,80 71,80 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <line
-            x1="67"
-            y1="84"
-            x2="79"
-            y2="84"
-            stroke="currentColor"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-          />
-        </g>
-
-        {/* Gear Group */}
-        <g className="logo-gear-group">
-          {/* Main Gear Ring */}
-          <circle
-            cx="50"
-            cy="42"
-            r="15"
-            fill="none"
-            stroke="#00C2A8"
+            d="M 50,14 L 84,32 L 50,48 L 16,32 Z"
+            fill="#FFFFFF"
+            fillOpacity="0.35"
+            stroke="#1A1A1A"
             strokeWidth="3.5"
-          />
-          
-          {/* Gear Cutout Ring */}
-          <circle
-            cx="50"
-            cy="42"
-            r="9.5"
-            fill="none"
-            stroke="#00C2A8"
-            strokeWidth="2"
+            strokeLinejoin="round"
           />
 
-          {/* Gear Teeth */}
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-            <rect
-              key={angle}
-              x="47.5"
-              y="22.5"
-              width="5"
-              height="5.5"
-              rx="1.5"
-              transform={`rotate(${angle}, 50, 42)`}
-              fill="#00C2A8"
-            />
-          ))}
+          {/* Isometric Inner Edges */}
+          <path
+            d="M 50,48 L 84,32 M 50,48 L 50,86 M 50,48 L 16,32"
+            stroke="#1A1A1A"
+            strokeWidth="3.5"
+            strokeLinejoin="round"
+          />
         </g>
 
-        {/* Centered Dollar Sign */}
-        <g className="logo-dollar" style={{ color: "var(--text-primary)" }}>
-          {/* Dollar Vertical Line */}
-          <line
-            x1="50"
-            y1="31"
-            x2="50"
-            y2="53"
-            stroke="currentColor"
-            strokeWidth="3"
+        {/* Dynamic Asset Flow Vector (Lifecycle Movement Loop) */}
+        <g className="logo-flow-arrow">
+          <path
+            d="M 30,58 C 30,38 48,26 66,34 C 74,38 76,50 68,56 C 60,64 36,60 36,46 C 36,34 52,22 72,26"
+            fill="none"
+            stroke="#FFFFFF"
+            strokeWidth="7"
             strokeLinecap="round"
           />
-          {/* Dollar 'S' Curves */}
           <path
-            d="M 53.5,35.5 C 53.5,32.5 46.5,32.5 46.5,36 C 46.5,39 53.5,40.5 53.5,43.5 C 53.5,47 46.5,47 46.5,44"
+            d="M 30,58 C 30,38 48,26 66,34 C 74,38 76,50 68,56 C 60,64 36,60 36,46 C 36,34 52,22 72,26"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
+            stroke="#1A1A1A"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+          {/* Flow Arrow Head */}
+          <path
+            d="M 62,21 L 74,26 L 70,38"
+            fill="none"
+            stroke="#1A1A1A"
+            strokeWidth="4"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        </g>
+
+        {/* Core Intelligence Sparkle Node */}
+        <g className="logo-sparkle" fill="#FFD6A5" stroke="#1A1A1A" strokeWidth="2.5">
+          <path d="M 50,38 Q 50,44 56,44 Q 50,44 50,50 Q 50,44 44,44 Q 50,44 50,38 Z" />
         </g>
       </svg>
     </div>
