@@ -66,7 +66,7 @@ export const Audits = () => {
         scope_location: scopeLocation || null,
         start_date: startDate,
         end_date: endDate,
-        auditor_employee_ids: selectedAuditors,
+        auditor_ids: selectedAuditors,
       };
 
       await apiFetch("/audits/cycles", {
